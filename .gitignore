@@ -1,0 +1,11 @@
+.venv/
+build/
+dist/
+module.tar.gz
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Vendored at build time by setup.sh — 8 MB, not source.
+models/*.task
