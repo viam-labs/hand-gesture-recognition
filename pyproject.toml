@@ -1,0 +1,18 @@
+[tool.ruff]
+# Pinned explicitly so a ruff release cannot change what CI enforces.
+target-version = "py39"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# UP (pyupgrade) is deliberately not selected: `Optional[X]` reads fine, and
+# rewriting to `X | None` would churn every signature for no functional gain.
+select = ["E", "F", "I", "B"]
+ignore = [
+    "E501",  # line length is handled by the formatter, not enforced
+    "B008",  # false positives on dataclass field() defaults
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
