@@ -1,18 +1,19 @@
 """Gesture stabilization — pure logic, no Viam or MediaPipe imports.
 
 MediaPipe classifies every frame independently, so a hand moving between poses
-transiently reads as other gestures. Feeding that straight to the arm means the
-arm lunges on a single bad frame. Two filters fix it:
+transiently reads as other gestures. Acted on directly, a single bad frame
+becomes a spurious trigger. Two filters fix it:
 
 1. **Hold.** A gesture must be the top result continuously for ``hold_ms``
    before it counts as stable. The window is wall-clock rather than a frame
-   count because the caller's poll rate is not ours to control — the reactor's
-   ``poll_interval_ms`` would otherwise silently redefine "N frames".
+   count because the consumer's poll rate is not ours to control — a frame count
+   would silently mean something different at every polling interval.
 
 2. **Edge trigger.** A stable gesture fires exactly once. Holding the pose does
    not re-fire it; the hand must clear (or, with ``require_clear`` off, change to
-   a different gesture) before anything else can trigger. Without this, holding
-   an open palm replays the session every ``cooldown_sec`` forever.
+   a different gesture) before anything else can trigger. Without this, a
+   consumer that acts on whatever it currently sees would re-act for as long as
+   the pose is held.
 """
 
 from __future__ import annotations

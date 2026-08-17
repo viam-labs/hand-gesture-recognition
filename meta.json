@@ -3,7 +3,7 @@
   "module_id": "viam:hand-gesture-recognition",
   "visibility": "public",
   "url": "https://github.com/viam-labs/hand-gesture-recognition",
-  "description": "Recognize hand gestures as vision detections, for triggering recorded arm motions",
+  "description": "Recognize hand gestures from any camera and report them as vision detections",
   "applications": null,
   "markdown_link": "README.md",
   "entrypoint": "dist/main/main",

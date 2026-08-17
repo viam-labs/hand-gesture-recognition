@@ -1,13 +1,14 @@
 """Viam vision service that reports hand gestures as detections.
 
-Emits MediaPipe gesture names as detection labels so that
-``devrel:arm-recorder:reactor`` — which polls ``GetDetectionsFromCamera`` and
-maps labels to recorded sessions — can drive an arm with zero changes.
+Emits MediaPipe's gesture names as detection labels against any configured Viam
+camera. General-purpose: anything that consumes the vision API can act on the
+result — triggering robot motion, gating a UI, capturing gestures as data.
 
-Detections rather than classifications is deliberate: it is what the reactor
-calls, MediaPipe hands us a real hand bounding box anyway, and boxes render on
-the camera stream in the Viam app, which is what makes framing and lighting
-tunable by eye. Classifications are implemented too, for other consumers.
+Detections rather than classifications is deliberate. MediaPipe already produces
+hand landmarks, so a bounding box costs nothing, and boxes render on the camera
+stream in the Viam app, which is what makes framing and lighting tunable by eye.
+It also means consumers that poll GetDetectionsFromCamera need no adaptation.
+Classifications are implemented too, for consumers that prefer them.
 
 This service never opens a capture device. Frames arrive from a configured Viam
 ``camera`` resource, so there is no ``cv2.VideoCapture``, no AVFoundation vs
@@ -227,8 +228,8 @@ class GestureDetector(Vision, EasyResource):
 
         At most one detection carries a bare gesture name — the one that fired
         this call. Every other visible hand is annotated with ``unstable_suffix``
-        so it shows on the camera stream without matching the reactor's label
-        map.
+        so it shows on the camera stream without matching any label a consumer
+        treats as a trigger.
         """
         now = time.monotonic()
         self._frames_seen += 1
