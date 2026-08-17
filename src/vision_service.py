@@ -73,7 +73,7 @@ def _bundled_model_path() -> Path:
 class GestureDetector(Vision, EasyResource):
     """Recognizes hand gestures and reports them as vision detections."""
 
-    MODEL: ClassVar[str] = "devrel:hand-gesture-recognition:gestures"
+    MODEL: ClassVar[str] = "viam:hand-gesture-recognition:gestures"
 
     # --- configuration, populated in reconfigure ---
     camera_name: str = ""

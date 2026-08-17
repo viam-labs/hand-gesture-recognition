@@ -19,10 +19,16 @@ echo "==> model present: $MODEL_PATH ($(du -h "$MODEL_PATH" | cut -f1))"
 
 UNAME=$(uname)
 if [ "$UNAME" = "Linux" ]; then
-  if ! python3 -m venv --help >/dev/null 2>&1; then
-    echo "==> installing python3-venv"
-    sudo apt-get -qq update && sudo apt-get -qq install -y python3-venv python3-dev
-  fi
+  # libmediapipe.so links against GL/GLES/EGL and opencv needs glib, none of
+  # which are present on a minimal Linux install or a CI runner. Without these
+  # every import fails with "libGLESv2.so.2: cannot open shared object file".
+  echo "==> installing system libraries"
+  SUDO=""
+  [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+  $SUDO apt-get -qq update
+  $SUDO apt-get -qq install -y python3-venv python3-dev libglib2.0-0 libgl1 libegl1
+  # libgles2 is named libgles2-mesa on Ubuntu 22.04 and older.
+  $SUDO apt-get -qq install -y libgles2 || $SUDO apt-get -qq install -y libgles2-mesa
 elif [ "$UNAME" = "Darwin" ]; then
   command -v python3 >/dev/null 2>&1 || { echo "python3 not found; install it first" >&2; exit 1; }
   ARCH=$(uname -m)

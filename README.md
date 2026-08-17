@@ -2,13 +2,13 @@
 
 A Viam vision service that recognizes hand gestures and reports them as **detections**, so that a hand gesture can trigger a pre-recorded robot arm motion.
 
-`devrel:hand-gesture-recognition:gestures` wraps [MediaPipe's Gesture Recognizer](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer) and emits the recognized gesture as a detection label with a hand bounding box. It is designed to pair with [`devrel:arm-recorder:reactor`](https://github.com/viam-devrel/arm-recorder), which polls a vision service and plays the recorded session mapped to a detected label:
+`viam:hand-gesture-recognition:gestures` wraps [MediaPipe's Gesture Recognizer](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer) and emits the recognized gesture as a detection label with a hand bounding box. It is designed to pair with [`devrel:arm-recorder:reactor`](https://github.com/viam-devrel/arm-recorder), which polls a vision service and plays the recorded session mapped to a detected label:
 
 ```
 camera ──► gestures (this module) ──► reactor ──► recorder ──► arm + gripper
 ```
 
-See the [model documentation](./docs/devrel_hand-gesture-recognition_gestures.md) for the full configuration and DoCommand reference.
+See the [model documentation](./docs/viam_hand-gesture-recognition_gestures.md) for the full configuration and DoCommand reference.
 
 ## Why detections, not classifications
 

@@ -1,4 +1,4 @@
-# Model devrel:hand-gesture-recognition:gestures
+# Model viam:hand-gesture-recognition:gestures
 
 A `vision` service that recognizes hand gestures with MediaPipe and reports them as detections, with the gesture name as the detection label and a bounding box around the hand. Intended to drive [`devrel:arm-recorder:reactor`](https://github.com/viam-devrel/arm-recorder), which maps detection labels to recorded arm sessions.
 
@@ -10,7 +10,7 @@ A `vision` service that recognizes hand gestures with MediaPipe and reports them
     {
       "name": "my-gestures",
       "type": "vision",
-      "model": "devrel:hand-gesture-recognition:gestures",
+      "model": "viam:hand-gesture-recognition:gestures",
       "attributes": {
         "camera_name": "my-camera",
         "num_hands": 2,
