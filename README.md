@@ -1,10 +1,8 @@
 # hand-gesture-recognition
 
-`viam:hand-gesture-recognition:gestures` is a Viam `vision` service that recognizes hand gestures with [MediaPipe](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer) and reports them as detections — the gesture name as the detection label, with a bounding box around the hand. It is designed as a proof-of-concept demonstration tool for gesture-driven robot control: paired with [`devrel:arm-recorder:reactor`](https://github.com/viam-devrel/arm-recorder), which polls a vision service and plays the recorded session mapped to a detected label, a hand gesture triggers a pre-recorded arm motion.
+`viam:hand-gesture-recognition:gestures` is a Viam `vision` service that recognizes hand gestures with [MediaPipe](https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer) and reports them as detections — the gesture name as the detection label, with a bounding box around the hand.
 
-```
-camera ──► gestures (this module) ──► reactor ──► recorder ──► arm + gripper
-```
+It works with any Viam `camera` and recognizes MediaPipe's seven built-in gestures. Anything that consumes the Viam vision API can use it: trigger robot actions, gate a UI, capture gestures as data, or drive any other logic that polls a vision service.
 
 ## Configuration
 
@@ -32,15 +30,15 @@ MediaPipe's eighth category, `None`, means "a hand is visible but matches no kno
 
 ## Behavior and caveats
 
-- **Detections, not classifications.** The reactor calls `GetDetectionsFromCamera`, so a detector plugs in with no changes anywhere else. It is also the better fit in practice: MediaPipe already produces hand landmarks, so the bounding box is free, and boxes render live on the camera stream in the Viam app — which is what makes framing, lighting, and threshold tuning something you can do by eye. Classifications are implemented as well, for consumers that prefer them.
+- **Detections, not classifications.** MediaPipe already produces hand landmarks, so a bounding box costs nothing, and boxes render live on the camera stream in the Viam app — which is what makes framing, lighting, and threshold tuning something you can do by eye. It also means consumers that poll `GetDetectionsFromCamera` work without adaptation. Classifications are implemented as well, for consumers that prefer them.
 
 - **Never opens a capture device.** Frames come from a configured Viam `camera` resource, so there is no `cv2.VideoCapture`, no AVFoundation-vs-V4L2 branching, and no contest with `viam-server` over an exclusive device handle. Requesting a camera other than the configured one returns an error.
 
-- **Hold filter.** MediaPipe classifies each frame independently, so a hand moving between poses transiently reads as other gestures — fed straight to an arm, that means the arm lunges on a single bad frame. A gesture must be the top result continuously for `hold_ms` (default 400) before it counts as stable, and a single stray frame restarts the window. The window is **wall-clock, not a frame count**, because the caller's poll rate is not ours to control — the reactor's `poll_interval_ms` would otherwise silently redefine what "N frames" means.
+- **Hold filter.** MediaPipe classifies each frame independently, so a hand moving between poses transiently reads as other gestures — acted on directly, a single bad frame becomes a spurious trigger. A gesture must be the top result continuously for `hold_ms` (default 400) before it counts as stable, and a single stray frame restarts the window. The window is **wall-clock, not a frame count**, because the consumer's poll rate is not ours to control — a frame count would silently mean something different at every polling interval.
 
-- **Edge trigger.** A stable gesture fires exactly once. Holding the pose does not re-fire it; the hand must leave the frame for `clear_ms` first. Without this, the reactor — which is level-triggered — would replay the session every `cooldown_sec` for as long as you held the pose. With `require_clear` (default `true`), switching directly from one gesture to another also fires nothing, which forces a deliberate pause between arm motions.
+- **Edge trigger.** A stable gesture fires exactly once. Holding the pose does not re-fire it; the hand must leave the frame for `clear_ms` first. Without this, a consumer that simply acts on whatever it currently sees would re-act for as long as you held the pose. With `require_clear` (default `true`), switching directly from one gesture to another also fires nothing, which forces a deliberate pause between actions.
 
-- **Non-triggering hands are suffixed.** Because a trigger is a single-frame event, a naive implementation would show a box only on the one frame a gesture fires, which is useless for tuning. Hands that are visible but not currently triggering are reported with `unstable_suffix` (default `?`) appended — `Open_Palm?` rather than `Open_Palm`. Boxes stay on the stream, and you can watch a label lose its `?` at the moment it fires, but **only bare names should appear in the reactor's `label_sessions` map**.
+- **Non-triggering hands are suffixed.** Because a trigger is a single-frame event, a naive implementation would show a box only on the one frame a gesture fires, which is useless for tuning. Hands that are visible but not currently triggering are reported with `unstable_suffix` (default `?`) appended — `Open_Palm?` rather than `Open_Palm`. Boxes stay on the stream, and you can watch a label lose its `?` at the moment it fires, but **consumers should treat only bare names as triggers**.
 
 - **At most one bare label per call.** When two hands show two gestures, only the highest-confidence one triggers; the other is suffixed.
 
@@ -48,7 +46,7 @@ MediaPipe's eighth category, `None`, means "a hand is visible but matches no kno
 
 - **Reconfigure resets all state.** The recognizer is rebuilt and the hold window and latch are cleared, so a stale latch never survives a config change.
 
-- **These filters are not a safety mechanism.** They reduce spurious triggering, but they depend on the camera, this module, and the network all being healthy. If this service fails, whatever protection it provided fails with it. Keep an out-of-band stop — physical power cutoff on the servo bus — available whenever the reactor is armed.
+- **The filters are not a safety mechanism.** They reduce spurious triggering, but they depend on the camera, this module, and the network all being healthy. If this service fails, whatever protection it provided fails with it. Anything that moves physical hardware in response to a gesture needs an out-of-band stop that does not route through this service.
 
 ## Platform support
 
@@ -73,10 +71,6 @@ These steps verify the module on a real machine. Use the **Control** tab in the 
 
 **Prerequisites:** the service is configured and the machine is online. The camera named in `attributes.camera_name` must be present, reachable, and listed in `depends_on`.
 
-### Vision-only validation
-
-Do all of this before connecting anything to an arm.
-
 1. **Confirm the service loaded.**
    Open the Control tab, find the `gestures` service, and in the DoCommand panel send:
    ```json
@@ -88,7 +82,7 @@ Do all of this before connecting anything to an arm.
    ```json
    {"command": "gestures"}
    ```
-   The returned names are exactly the strings to use as keys in the reactor's `label_sessions`.
+   These are the exact strings the service will emit as detection labels.
 
 3. **Confirm frames are flowing, with no hand present.**
    Open the camera stream and select the `gestures` service as the overlay. With no hand in frame no boxes should appear, and `frames_seen` in `status` should climb between calls.
@@ -100,7 +94,7 @@ Do all of this before connecting anything to an arm.
    Keep holding the palm. Within `hold_ms` the label should briefly drop its `?` to read `Open_Palm`, then return to `Open_Palm?`. That single frame is the trigger. Send `{"command": "status"}` and confirm `last_fired` is `"Open_Palm"` and `latched` is `"Open_Palm"`.
 
 6. **Confirm holding does not re-fire.**
-   Keep the palm up for another 10 seconds. `seconds_since_last_fired` should keep climbing — it must not reset. This is the behavior that prevents a held pose from replaying a session repeatedly.
+   Keep the palm up for another 10 seconds. `seconds_since_last_fired` should keep climbing — it must not reset.
 
 7. **Confirm clearing re-arms.**
    Drop your hand out of frame for a second, then raise the palm again. `status` should show `seconds_since_last_fired` reset to near zero.
@@ -111,9 +105,25 @@ Do all of this before connecting anything to an arm.
 9. **Tune.**
    Raise `hold_ms` if gestures fire while you are still moving your hand into position; lower it if triggering feels sluggish. Raise `min_gesture_score` if the wrong gesture is recognized confidently. Send `{"command": "reset"}` to clear the latch without leaving frame.
 
-### End-to-end validation with arm-recorder
+### Using the Viam CLI
 
-Only proceed once the vision-only steps all behave as described.
+You can also drive DoCommands from the terminal using `viam machine part run`:
+
+```bash
+viam machine part run --machine <machine-id> --part <part-id> --resource gestures do-command '{"command":"status"}'
+```
+
+Replace `<machine-id>`, `<part-id>`, and `gestures` with your machine's values.
+
+## Example: triggering recorded arm motions
+
+One use of this service is driving a robot arm. [`devrel:arm-recorder:reactor`](https://github.com/viam-devrel/arm-recorder) polls a vision service and plays the recorded session mapped to a detected label, so pointing it at this service makes a hand gesture replay a pre-recorded motion:
+
+```
+camera ──► gestures ──► reactor ──► recorder ──► arm + gripper
+```
+
+Validate the vision steps above first — all of them should behave as described before an arm is connected.
 
 1. **Record one session per gesture** you intend to use. See the [arm-recorder documentation](https://github.com/viam-devrel/arm-recorder).
 
@@ -142,30 +152,13 @@ Only proceed once the vision-only steps all behave as described.
    ```
    Note that `label_sessions` contains no `?` entries — suffixed labels exist to be visible, not to trigger.
 
-4. **Clear the workspace,** then arm the reactor:
-   ```json
-   {"command": "start_reacting"}
-   ```
+4. **Clear the workspace,** then arm the reactor with `{"command": "start_reacting"}`.
 
 5. **Trigger one gesture** and confirm the arm plays the matching session. Send `{"command": "status"}` to the reactor and verify `last_label` and `last_session`.
 
-6. **Disarm.**
-   ```json
-   {"command": "stop_reacting"}
-   ```
-   This also sends `stop_playback` to the recorder, halting any motion in progress.
+6. **Disarm** with `{"command": "stop_reacting"}`, which also sends `stop_playback` to the recorder, halting any motion in progress.
 
 > **Warning:** once armed, the arm moves autonomously in response to whatever the camera sees. The reactor has no gesture-driven stop — its only lever is `play`, and the recorder rejects a `play` while a playback is already running. Disarming from the Viam app is the only way to interrupt a motion in progress.
-
-### Using the Viam CLI
-
-You can also drive DoCommands from the terminal using `viam machine part run`:
-
-```bash
-viam machine part run --machine <machine-id> --part <part-id> --resource gestures do-command '{"command":"status"}'
-```
-
-Replace `<machine-id>`, `<part-id>`, and `gestures` with your machine's values.
 
 ## Development
 
