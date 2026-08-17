@@ -1,0 +1,28 @@
+{
+  "$schema": "https://dl.viam.dev/module.schema.json",
+  "module_id": "devrel:hand-gesture-recognition",
+  "visibility": "public",
+  "url": "https://github.com/viam-labs/hand-gesture-recognition",
+  "description": "Recognize hand gestures as vision detections, for triggering recorded arm motions",
+  "applications": null,
+  "markdown_link": "README.md",
+  "entrypoint": "dist/main/main",
+  "first_run": "",
+  "build": {
+    "build": "./build.sh",
+    "setup": "./setup.sh",
+    "path": "module.tar.gz",
+    "arch": [
+      "darwin/arm64",
+      "linux/amd64"
+    ]
+  },
+  "models": [
+    {
+      "api": "rdk:service:vision",
+      "model": "devrel:hand-gesture-recognition:gestures",
+      "short_description": "Hand gesture recognition via MediaPipe, reported as detections",
+      "markdown_link": "docs/devrel_hand-gesture-recognition_gestures.md"
+    }
+  ]
+}

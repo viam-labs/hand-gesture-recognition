@@ -1,0 +1,14 @@
+# MediaPipe is pinned, not floated. 1.0.0 and 1.0.1 abort on macOS arm64 inside
+# TensorsToDetectionsCalculator::Open -> DrishtiMetalHelper with
+# "graph_service.h:139 Check failed: service_ Service is unavailable" — the Metal
+# GPU path is compiled into the graph and the Python Tasks runner never registers
+# the Metal service. BaseOptions.Delegate.CPU does not avoid it.
+#
+# The cost of this pin: 0.10.35 publishes no linux/aarch64 wheel (that arrived in
+# 1.0.0), so arm64 Linux and Raspberry Pi are out until upstream fixes macOS.
+# Verified working: darwin/arm64 + Python 3.14.6.
+mediapipe==0.10.35
+
+numpy
+viam-sdk
+typing-extensions
