@@ -66,10 +66,33 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "==> installing system libraries"
-$SUDO apt-get -qq update
-$SUDO apt-get -qq install -y libgl1 libegl1
+
+# apt has two ways to wait forever with no output: debconf asking a question,
+# and needrestart asking which services to restart (the default on Ubuntu 22.04+).
+# Either would wedge module installation on a user's machine with no diagnostic,
+# so silence both and cap each call — a stall must fail loudly, not hang.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
+
+apt_get() {
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 600 $SUDO apt-get -qq \
+            -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "$@"
+    else
+        $SUDO apt-get -qq \
+            -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "$@"
+    fi
+}
+
+if ! apt_get update; then
+    echo "ERROR: 'apt-get update' failed or timed out; install these by hand and restart the module:" >&2
+    echo "  libgl1  libegl1  libgles2" >&2
+    exit 1
+fi
+apt_get install -y libgl1 libegl1
 # libgles2 is named libgles2-mesa on Ubuntu 22.04 and older.
-$SUDO apt-get -qq install -y libgles2 || $SUDO apt-get -qq install -y libgles2-mesa
+apt_get install -y libgles2 || apt_get install -y libgles2-mesa
 
 STILL_MISSING=$(find_missing)
 if [ -n "$STILL_MISSING" ]; then
