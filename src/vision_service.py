@@ -179,6 +179,13 @@ class GestureDetector(Vision, EasyResource):
             )
 
         self._close_recognizer()
+        # MediaPipe's first import on a machine builds matplotlib's font cache,
+        # which can take ~20s and makes viam-server log "Waiting for resource to
+        # complete (re)configuration". Say so, rather than looking hung.
+        LOGGER.info(
+            "initializing MediaPipe; the first run on a machine can take ~20s "
+            "while matplotlib builds its font cache"
+        )
         self._recognizer = self._build_recognizer(model_path)
         LOGGER.info(
             "gesture detector ready: camera=%s hands=%d hold=%.0fms model=%s",
