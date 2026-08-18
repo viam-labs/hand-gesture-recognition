@@ -65,8 +65,14 @@ fi
 
 echo "==> creating venv"
 python3 -m venv .venv
-./.venv/bin/pip install --upgrade pip
-./.venv/bin/pip install -r requirements.txt
-./.venv/bin/pip install pyinstaller pytest
+
+# pip has no default socket timeout either, so a stalled PyPI connection hangs
+# forever. These downloads are large (mediapipe, opencv, matplotlib), which makes
+# a stall more likely, not less.
+export PIP_DEFAULT_TIMEOUT=60
+PIP_ARGS="--retries 5"
+./.venv/bin/pip install $PIP_ARGS --upgrade pip
+./.venv/bin/pip install $PIP_ARGS -r requirements.txt
+./.venv/bin/pip install $PIP_ARGS pyinstaller pytest
 
 echo "==> setup complete"
