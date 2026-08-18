@@ -66,12 +66,16 @@ MediaPipe's eighth category, `None`, means "a hand is visible but matches no kno
 |---|---|
 | macOS Apple Silicon (`darwin/arm64`) | ✅ |
 | Linux x86_64 (`linux/amd64`, glibc ≥ 2.28) | ✅ |
-| Linux arm64 / Raspberry Pi | ❌ no `0.10.35` wheel |
+| Linux arm64 / Raspberry Pi | ❌ no wheel below 1.0 |
 | macOS Intel | ❌ no MediaPipe wheel at any version |
 
-MediaPipe is pinned to `0.10.35`. Versions 1.0.0 and 1.0.1 abort on macOS arm64 inside `TensorsToDetectionsCalculator::Open` → `DrishtiMetalHelper` with `graph_service.h:139 Check failed: service_ Service is unavailable` — the Metal GPU path is compiled into the graph and the Python Tasks runner never registers the Metal service. Passing `BaseOptions.Delegate.CPU` does not avoid it.
+MediaPipe is pinned to `0.10.33`, and the pin is load-bearing in both directions.
 
-The cost of that pin is arm64 Linux: `0.10.35` publishes no `manylinux_aarch64` wheel — that arrived in 1.0.0 — so Raspberry Pi is out until upstream fixes macOS. The bug is Apple-specific, so a per-platform pin could restore it if needed.
+**Not 1.0.x** — 1.0.0 and 1.0.1 abort on macOS arm64 inside `TensorsToDetectionsCalculator::Open` → `DrishtiMetalHelper` with `graph_service.h:139 Check failed: service_ Service is unavailable`. The Metal GPU path is compiled into the graph and the Python Tasks runner never registers the Metal service; `BaseOptions.Delegate.CPU` does not avoid it.
+
+**Not 0.10.35** — that build phones home. Its `libmediapipe` carries 275 references to Google's `clearcut` telemetry service and attempts uploads at runtime, which show up in logs as `portable_clearcut_uploader.cc` errors. The telemetry is undocumented and has no opt-out ([google-ai-edge/mediapipe#6291](https://github.com/google-ai-edge/mediapipe/issues/6291)); because the PyPI wheels are built inside Google, `clearcut` does not appear in the public source tree, so it can only be audited from the shipped binary. `0.10.33` is the newest release with zero references, and there is no `0.10.34` — it is exactly the last clean version. `tests/test_no_telemetry.py` reads the bundled native library on every CI run to keep it that way.
+
+`0.10.33` matches `0.10.35` on platform coverage and performance. The cost of staying below 1.0 is arm64 Linux, whose wheel first shipped in 1.0.0 — so Raspberry Pi is out until upstream fixes macOS. That bug is Apple-specific, so a per-platform pin could restore it if needed.
 
 On Linux the bundle needs three libraries from the host, because PyInstaller refuses to bundle the GL family — they have to match the machine's graphics drivers:
 
@@ -132,10 +136,10 @@ These steps verify the module on a real machine. Use the **Control** tab in the 
 You can also drive DoCommands from the terminal using `viam machine part run`:
 
 ```bash
-viam machines part run --part <part-id> --component gestures --method DoCommand --data '{"command":"status"}'
+viam machines part run --part <part-id> --component gestures --method DoCommand --data '{"command":{"command":"status"}}'
 ```
 
-Replace `<part-id>` with your machine part's ID and `gestures` with the name you gave the service.
+Replace `<part-id>` with your machine part's ID and `gestures` with the name you gave the service. Note that `command` nests twice: the outer key is the `DoCommand` request field, the inner one is this service's verb.
 
 ## Example: triggering recorded arm motions
 
