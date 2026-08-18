@@ -20,7 +20,7 @@ datas += [("models/gesture_recognizer.task", "models")]
 hiddenimports += ["viam", "viam.services.vision", "viam.components.camera"]
 
 a = Analysis(
-    ["src/main.py"],
+    ["main.py"],
     pathex=["."],
     binaries=binaries,
     datas=datas,
