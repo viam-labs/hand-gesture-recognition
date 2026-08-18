@@ -132,10 +132,10 @@ These steps verify the module on a real machine. Use the **Control** tab in the 
 You can also drive DoCommands from the terminal using `viam machine part run`:
 
 ```bash
-viam machine part run --machine <machine-id> --part <part-id> --resource gestures do-command '{"command":"status"}'
+viam machines part run --part <part-id> --component gestures --method DoCommand --data '{"command":"status"}'
 ```
 
-Replace `<machine-id>`, `<part-id>`, and `gestures` with your machine's values.
+Replace `<part-id>` with your machine part's ID and `gestures` with the name you gave the service.
 
 ## Example: triggering recorded arm motions
 

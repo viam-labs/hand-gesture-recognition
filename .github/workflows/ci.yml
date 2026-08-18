@@ -34,3 +34,41 @@ jobs:
 
       - name: Test
         run: make test
+
+  # v0.1.1 shipped a bundle that crashed on startup while every unit test passed,
+  # because nothing executed the built artifact. This job builds it and runs it.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup (system libs, venv, model bundle)
+        run: ./setup.sh
+
+      - name: Build the PyInstaller bundle
+        run: ./build.sh
+
+      - name: Frozen binary must start and serve
+        run: |
+          set -euo pipefail
+          # No socket argument: must reach argument parsing, not die at import.
+          out=$(./dist/main/main 2>&1 || true)
+          if grep -qiE "ImportError|ModuleNotFoundError|no known parent package" <<<"$out"; then
+            echo "::error::frozen binary failed at import"; echo "$out"; exit 1
+          fi
+          # With a socket, it must come up and stay up.
+          sock="$(mktemp -d)/t.sock"
+          ./dist/main/main "$sock" >/tmp/mod.log 2>&1 &
+          pid=$!
+          for _ in $(seq 1 20); do
+            grep -q "Serving on" /tmp/mod.log && break
+            kill -0 "$pid" 2>/dev/null || { echo "::error::module exited early"; cat /tmp/mod.log; exit 1; }
+            sleep 1
+          done
+          grep -q "Serving on" /tmp/mod.log || { echo "::error::module never served"; cat /tmp/mod.log; exit 1; }
+          kill "$pid" 2>/dev/null || true
+          echo "frozen binary started and served"

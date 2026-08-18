@@ -2,7 +2,7 @@
 # Pinned explicitly so a ruff release cannot change what CI enforces.
 target-version = "py39"
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "tests", "."]
 
 [tool.ruff.lint]
 # UP (pyupgrade) is deliberately not selected: `Optional[X]` reads fine, and
@@ -16,3 +16,7 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff.lint.isort]
+# src/ is this project's own package, not a third-party dependency.
+known-first-party = ["src"]
