@@ -167,7 +167,7 @@ class GestureDetector(Vision, EasyResource):
         if cam_resource is None:
             raise ValueError(
                 f"camera '{self.camera_name}' not found in dependencies; "
-                f"add it to this service's 'depends_on'"
+                f"check that a camera named '{self.camera_name}' exists on this machine"
             )
         self._camera = cast_camera(cam_resource)
 
@@ -326,7 +326,13 @@ class GestureDetector(Vision, EasyResource):
             )
         if self._camera is None:
             raise RuntimeError("camera dependency is not configured")
-        return await self._camera.get_image()
+        # The Camera API has no get_image(); get_images() returns
+        # (Sequence[NamedImage], ResponseMetadata). NamedImage subclasses
+        # ViamImage, so the first frame flows straight through.
+        images, _ = await self._camera.get_images()
+        if not images:
+            raise RuntimeError(f"camera '{self.camera_name}' returned no images")
+        return images[0]
 
     # ------------------------------------------------------------------
     # Vision API
