@@ -38,13 +38,20 @@ if [ "$UNAME" = "Linux" ]; then
   export NEEDRESTART_SUSPEND=1
 
   apt_get() {
-    if command -v timeout >/dev/null 2>&1; then
-      timeout 600 $SUDO apt-get -qq \
-        -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "$@"
-    else
-      $SUDO apt-get -qq \
-        -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "$@"
-    fi
+      # --foreground is required, not optional. Without it, timeout puts the command in
+      # a background process group; anything that then touches the controlling TTY takes
+      # SIGTTIN and suspends -- a hang caused by the very thing meant to prevent one.
+      # That is exactly how v0.1.5's linux build failed, while GitHub runners passed
+      # because they have no TTY.
+      if command -v timeout >/dev/null 2>&1; then
+          timeout --foreground 600 $SUDO apt-get -qq \
+              -o Dpkg::Options::=--force-confdef \
+              -o Dpkg::Options::=--force-confold "$@"
+      else
+          $SUDO apt-get -qq \
+              -o Dpkg::Options::=--force-confdef \
+              -o Dpkg::Options::=--force-confold "$@"
+      fi
   }
 
   apt_get update
