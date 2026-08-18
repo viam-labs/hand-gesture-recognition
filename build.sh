@@ -18,6 +18,8 @@ rm -rf build dist
 
 echo "==> packing module.tar.gz"
 # dist/main/ is the whole onedir bundle: the launcher plus _internal/.
-tar -czf module.tar.gz meta.json dist/main
+# first_run.sh must ship in the tarball — viam-server executes it on the target
+# machine after install, from the unpacked module directory.
+tar -czf module.tar.gz meta.json first_run.sh dist/main
 
 echo "==> built $(du -h module.tar.gz | cut -f1) for ${VIAM_BUILD_OS:-$(uname)}/${VIAM_BUILD_ARCH:-$(uname -m)}"

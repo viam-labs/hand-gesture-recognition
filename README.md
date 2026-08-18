@@ -4,21 +4,33 @@
 
 It works with any Viam `camera` and recognizes MediaPipe's seven built-in gestures. Anything that consumes the Viam vision API can use it: trigger robot actions, gate a UI, capture gestures as data, or drive any other logic that polls a vision service.
 
+## Setup
+
+1. **Add the module.** In the [Viam app](https://app.viam.com), go to your machine's **CONFIGURE** tab, click **+**, and search the registry for `hand-gesture-recognition`. Add the `gestures` vision service.
+
+2. **Configure a camera** if you do not already have one. Any Viam `camera` works; a USB webcam via the built-in `webcam` model is the usual choice.
+
+3. **Point the service at it** — set `camera_name` in the attributes card (see [Configuration](#configuration)). That is the only attribute you have to set.
+
+4. **Save**, and wait for the module to finish deploying.
+
+On **Linux**, the module installs its own system libraries on first run — MediaPipe needs GL/GLES/EGL, which cannot be bundled because they have to match the host's graphics drivers. If that step cannot run (no `apt-get`, or no root), the module reports which packages to install by hand.
+
+On **macOS**, the first time `viam-server` opens the webcam it needs camera permission. Run `viam-server` in the foreground from Terminal initially so the prompt appears — as a background daemon it can fail silently. Grant under System Settings → Privacy & Security → Camera.
+
 ## Configuration
 
-See the [gestures documentation](./docs/viam_hand-gesture-recognition_gestures.md) for the full attribute and `DoCommand` reference for that resource.
-
-Minimal configuration — the camera must appear in both `camera_name` and `depends_on`:
+Set this in the attributes card of the `gestures` service:
 
 ```json
 {
-  "name": "my-gestures",
-  "type": "vision",
-  "model": "viam:hand-gesture-recognition:gestures",
-  "attributes": { "camera_name": "my-camera" },
-  "depends_on": ["my-camera"]
+  "camera_name": "my-camera"
 }
 ```
+
+`camera_name` is the only required attribute. The camera is declared as an implicit dependency, so there is no need to add it to `depends_on` — viam-server resolves it for you.
+
+See the [gestures documentation](./docs/viam_hand-gesture-recognition_gestures.md) for every optional attribute and the full `DoCommand` reference.
 
 ## Recognized gestures
 
@@ -61,7 +73,17 @@ MediaPipe is pinned to `0.10.35`. Versions 1.0.0 and 1.0.1 abort on macOS arm64 
 
 The cost of that pin is arm64 Linux: `0.10.35` publishes no `manylinux_aarch64` wheel — that arrived in 1.0.0 — so Raspberry Pi is out until upstream fixes macOS. The bug is Apple-specific, so a per-platform pin could restore it if needed.
 
-On Linux, `libmediapipe.so` links against GL/GLES/EGL and OpenCV needs glib. `setup.sh` installs these; on a machine configured by hand, missing them shows up as `libGLESv2.so.2: cannot open shared object file`.
+On Linux the bundle needs three libraries from the host, because PyInstaller refuses to bundle the GL family — they have to match the machine's graphics drivers:
+
+| Library | Required by | Package |
+|---|---|---|
+| `libGLESv2.so.2` | `libmediapipe.so` | `libgles2` |
+| `libEGL.so.1` | `libmediapipe.so` | `libegl1` |
+| `libGL.so.1` | `cv2.abi3.so` → `libQt5Gui` | `libgl1` |
+
+All three are hard `DT_NEEDED` entries reached at import, so missing any one shows up as `libGLESv2.so.2: cannot open shared object file` (or the equivalent). `first_run.sh` installs them on the target machine; if it cannot, it names them so you can install them by hand.
+
+Nothing else is needed from the host — `libglib` is bundled, and the `libxcb` / `libICE` / `libSM` that Qt's xcb platform plugin wants are never reached, since nothing here opens a GUI window.
 
 On macOS, the first time `viam-server` opens the webcam it needs camera permission. Run `viam-server` in the foreground from Terminal initially so the prompt appears — as a background daemon it can fail silently. Grant under System Settings → Privacy & Security → Camera.
 
@@ -69,7 +91,7 @@ On macOS, the first time `viam-server` opens the webcam it needs camera permissi
 
 These steps verify the module on a real machine. Use the **Control** tab in the [Viam app](https://app.viam.com) or the `viam machine part run` CLI to send DoCommands.
 
-**Prerequisites:** the service is configured and the machine is online. The camera named in `attributes.camera_name` must be present, reachable, and listed in `depends_on`.
+**Prerequisites:** the service is configured and the machine is online, and the camera named in `camera_name` is present and reachable.
 
 1. **Confirm the service loaded.**
    Open the Control tab, find the `gestures` service, and in the DoCommand panel send:
@@ -129,28 +151,24 @@ Validate the vision steps above first — all of them should behave as described
 
 2. **Set conservative speed limits on the recorder** — `max_velocity_rads_per_sec` and `max_acceleration_rads_per_sec` — before arming anything. Without them the safe-entry move runs at the arm driver's default speed and can be a large sweep from the arm's current pose.
 
-3. **Configure the reactor** against this service, mapping bare gesture names:
+3. **Configure the reactor** against this service, mapping bare gesture names. In the reactor's attributes card:
    ```json
    {
-     "name": "my-reactor",
-     "type": "generic",
-     "model": "devrel:arm-recorder:reactor",
-     "attributes": {
-       "vision_service": "my-gestures",
-       "camera": "my-camera",
-       "recorder": "my-recorder",
-       "label_sessions": {
-         "Open_Palm": "wave",
-         "Victory": "pick-cup"
-       },
-       "poll_interval_ms": 200,
-       "min_confidence": 0.5,
-       "cooldown_sec": 5
+     "vision_service": "my-gestures",
+     "camera": "my-camera",
+     "recorder": "my-recorder",
+     "label_sessions": {
+       "Open_Palm": "wave",
+       "Victory": "pick-cup"
      },
-     "depends_on": ["my-gestures", "my-camera", "my-recorder"]
+     "poll_interval_ms": 200,
+     "min_confidence": 0.5,
+     "cooldown_sec": 5
    }
    ```
    Note that `label_sessions` contains no `?` entries — suffixed labels exist to be visible, not to trigger.
+
+   Unlike this service, the reactor does not declare implicit dependencies, so add `my-gestures`, `my-camera`, and `my-recorder` to its `depends_on`.
 
 4. **Clear the workspace,** then arm the reactor with `{"command": "start_reacting"}`.
 

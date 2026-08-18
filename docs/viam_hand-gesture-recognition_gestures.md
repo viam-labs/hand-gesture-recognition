@@ -4,44 +4,30 @@ A `vision` service that recognizes hand gestures with MediaPipe and reports them
 
 ## Configuration
 
+Set these in the attributes card of the `gestures` service. `camera_name` is the only one you have to provide:
+
 ```json
 {
-  "services": [
-    {
-      "name": "my-gestures",
-      "type": "vision",
-      "model": "viam:hand-gesture-recognition:gestures",
-      "attributes": {
-        "camera_name": "my-camera",
-        "num_hands": 2,
-        "hold_ms": 400,
-        "clear_ms": 300,
-        "require_clear": true,
-        "min_gesture_score": 0.5,
-        "preview_unstable": true,
-        "unstable_suffix": "?",
-        "box_padding": 0.06
-      },
-      "depends_on": ["my-camera"]
-    }
-  ]
+  "camera_name": "my-camera",
+  "hold_ms": 400,
+  "min_gesture_score": 0.5
 }
 ```
 
 ### Attributes
 
-| Attribute | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `camera_name` | string | yes | — | Camera component supplying frames. Must also appear in `depends_on`. Requesting a different camera from `GetDetectionsFromCamera` is an error. |
-| `num_hands` | number | no | `2` | Maximum hands to track, 1–4. Only the highest-confidence gesture can trigger. |
-| `hold_ms` | number | no | `400` | How long a gesture must be the top result continuously before it counts as stable. Wall-clock, not frames. |
-| `clear_ms` | number | no | `300` | How long "no gesture" must persist before the latch releases and a new trigger is allowed. Prevents a momentary dropout from re-arming a still-held pose. |
-| `require_clear` | bool | no | `true` | When `true`, the hand must clear between triggers — switching straight from one gesture to another fires nothing. When `false`, a different stable gesture fires immediately. |
-| `min_gesture_score` | number | no | `0.5` | MediaPipe score floor, `[0, 1]`. Hands below it are ignored entirely. Applied before the hold filter, and independent of any confidence threshold a consumer applies downstream. |
-| `preview_unstable` | bool | no | `true` | Report non-triggering hands with `unstable_suffix` appended, so boxes stay visible on the camera stream. |
-| `unstable_suffix` | string | no | `"?"` | Appended to non-triggering labels. Must not collide with any label a consumer treats as a trigger. |
-| `box_padding` | number | no | `0.06` | Normalized padding added around the hand landmarks, `[0, 0.5]`. Purely cosmetic. |
-| `model_path` | string | no | bundled | Override the `.task` bundle. Defaults to the vendored `gesture_recognizer.task`. |
+| Name | Type | Required | Description |
+| ------------------- | ------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `camera_name` | string | **Required** | Camera component supplying frames. Declared as an implicit dependency, so it does **not** need to be listed in `depends_on`. Requesting a different camera from `GetDetectionsFromCamera` is an error. |
+| `num_hands` | number | Optional | Maximum hands to track, 1–4. Only the highest-confidence gesture can trigger. Default: `2` |
+| `hold_ms` | number | Optional | How long a gesture must be the top result continuously before it counts as stable. Wall-clock, not frames. Default: `400` |
+| `clear_ms` | number | Optional | How long "no gesture" must persist before the latch releases and a new trigger is allowed. Prevents a momentary dropout from re-arming a still-held pose. Default: `300` |
+| `require_clear` | bool | Optional | When `true`, the hand must clear between triggers — switching straight from one gesture to another fires nothing. When `false`, a different stable gesture fires immediately. Default: `true` |
+| `min_gesture_score` | number | Optional | MediaPipe score floor, `[0, 1]`. Hands below it are ignored entirely. Applied before the hold filter, and independent of any threshold a consumer applies downstream. Default: `0.5` |
+| `preview_unstable` | bool | Optional | Report non-triggering hands with `unstable_suffix` appended, so boxes stay visible on the camera stream. Default: `true` |
+| `unstable_suffix` | string | Optional | Appended to non-triggering labels. Must not collide with any label a consumer treats as a trigger. Default: `"?"` |
+| `box_padding` | number | Optional | Normalized padding added around the hand landmarks, `[0, 0.5]`. Purely cosmetic. Default: `0.06` |
+| `model_path` | string | Optional | Override the `.task` bundle. Default: the vendored `gesture_recognizer.task` |
 
 ## Labels
 
