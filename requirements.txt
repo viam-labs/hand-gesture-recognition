@@ -1,13 +1,25 @@
-# MediaPipe is pinned, not floated. 1.0.0 and 1.0.1 abort on macOS arm64 inside
-# TensorsToDetectionsCalculator::Open -> DrishtiMetalHelper with
-# "graph_service.h:139 Check failed: service_ Service is unavailable" — the Metal
-# GPU path is compiled into the graph and the Python Tasks runner never registers
-# the Metal service. BaseOptions.Delegate.CPU does not avoid it.
+# MediaPipe is pinned to 0.10.33, and the pin is load-bearing in two directions.
 #
-# The cost of this pin: 0.10.35 publishes no linux/aarch64 wheel (that arrived in
-# 1.0.0), so arm64 Linux and Raspberry Pi are out until upstream fixes macOS.
-# Verified working: darwin/arm64 + Python 3.14.6.
-mediapipe==0.10.35
+# Upper bound — 1.0.0 and 1.0.1 abort on macOS arm64 inside
+# TensorsToDetectionsCalculator::Open -> DrishtiMetalHelper with
+# "graph_service.h:139 Check failed: service_ Service is unavailable". The Metal
+# GPU path is compiled into the graph and the Python Tasks runner never
+# registers the Metal service; BaseOptions.Delegate.CPU does not avoid it.
+#
+# Not 0.10.35 — that build phones home. Its libmediapipe carries 275 references
+# to Google's "clearcut" telemetry service and attempts uploads at runtime,
+# which surface as portable_clearcut_uploader.cc errors. It is undocumented and
+# has no opt-out (google-ai-edge/mediapipe#6291); the PyPI wheels are built
+# inside Google, so clearcut does not appear in the public source tree at all.
+# 0.10.33 is the newest release with zero clearcut references, and there is no
+# 0.10.34, so it is exactly the last clean version. Verified byte-for-byte
+# against the published wheels, and tests/test_no_telemetry.py keeps it that way.
+#
+# 0.10.33 matches 0.10.35's platform coverage (py3-none for macosx_11_0_arm64 and
+# manylinux_2_28_x86_64) and its performance (5.4 ms median on a blank frame).
+# The cost of staying below 1.0 is linux/aarch64, whose wheel first shipped in
+# 1.0.0 — so Raspberry Pi stays out until upstream fixes macOS.
+mediapipe==0.10.33
 
 numpy
 viam-sdk
