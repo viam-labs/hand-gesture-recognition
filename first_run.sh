@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 # Runs once on the target machine when the module is installed.
 #
-# libmediapipe.so links against GL/GLES/EGL, and OpenCV needs glib. PyInstaller
-# deliberately refuses to bundle the GL family — they have to match the host's
-# graphics drivers — so they must come from the system. Without them the module
-# dies on import with "libGLESv2.so.2: cannot open shared object file".
+# PyInstaller deliberately refuses to bundle the GL family — those libraries have
+# to match the host's graphics drivers — so they must come from the system.
+# Verified against the built linux/amd64 bundle by reading DT_NEEDED across all
+# 218 bundled binaries; three entries are unsatisfied at import time:
+#
+#   libGLESv2.so.2, libEGL.so.1   <- mediapipe/tasks/c/libmediapipe.so
+#   libGL.so.1                    <- cv2.abi3.so -> libQt5Gui -> libGL
+#
+# The cv2 chain is not optional: cv2.abi3.so has a hard DT_NEEDED on libQt5Gui,
+# and mediapipe imports cv2 eagerly. Without these the module dies on import
+# with "libGLESv2.so.2: cannot open shared object file".
+#
+# Deliberately NOT installed: libglib is already bundled, and libxcb/libICE/libSM
+# are only reached through Qt's xcb *platform plugin*, which never loads because
+# nothing here opens a GUI window.
 #
 # macOS needs nothing: the .dylib has no such dependency.
 #
@@ -14,7 +25,7 @@ set -euo pipefail
 
 [ "$(uname)" = "Linux" ] || exit 0
 
-REQUIRED_LIBS="libGLESv2.so.2 libEGL.so.1 libglib-2.0.so.0"
+REQUIRED_LIBS="libGLESv2.so.2 libEGL.so.1 libGL.so.1"
 
 find_missing() {
     local out=""
@@ -38,7 +49,7 @@ ERROR: missing system libraries and apt-get is unavailable on this machine.
 Install the equivalents of these packages with your distribution's package
 manager, then restart the module:
 
-  libglib2.0-0  libgl1  libegl1  libgles2
+  libgl1  libegl1  libgles2
 
 They provide:$MISSING
 MSG
@@ -56,7 +67,7 @@ fi
 
 echo "==> installing system libraries"
 $SUDO apt-get -qq update
-$SUDO apt-get -qq install -y libglib2.0-0 libgl1 libegl1
+$SUDO apt-get -qq install -y libgl1 libegl1
 # libgles2 is named libgles2-mesa on Ubuntu 22.04 and older.
 $SUDO apt-get -qq install -y libgles2 || $SUDO apt-get -qq install -y libgles2-mesa
 

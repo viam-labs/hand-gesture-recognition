@@ -73,7 +73,17 @@ MediaPipe is pinned to `0.10.35`. Versions 1.0.0 and 1.0.1 abort on macOS arm64 
 
 The cost of that pin is arm64 Linux: `0.10.35` publishes no `manylinux_aarch64` wheel — that arrived in 1.0.0 — so Raspberry Pi is out until upstream fixes macOS. The bug is Apple-specific, so a per-platform pin could restore it if needed.
 
-On Linux, `libmediapipe.so` links against GL/GLES/EGL and OpenCV needs glib. `setup.sh` installs these; on a machine configured by hand, missing them shows up as `libGLESv2.so.2: cannot open shared object file`.
+On Linux the bundle needs three libraries from the host, because PyInstaller refuses to bundle the GL family — they have to match the machine's graphics drivers:
+
+| Library | Required by | Package |
+|---|---|---|
+| `libGLESv2.so.2` | `libmediapipe.so` | `libgles2` |
+| `libEGL.so.1` | `libmediapipe.so` | `libegl1` |
+| `libGL.so.1` | `cv2.abi3.so` → `libQt5Gui` | `libgl1` |
+
+All three are hard `DT_NEEDED` entries reached at import, so missing any one shows up as `libGLESv2.so.2: cannot open shared object file` (or the equivalent). `first_run.sh` installs them on the target machine; if it cannot, it names them so you can install them by hand.
+
+Nothing else is needed from the host — `libglib` is bundled, and the `libxcb` / `libICE` / `libSM` that Qt's xcb platform plugin wants are never reached, since nothing here opens a GUI window.
 
 On macOS, the first time `viam-server` opens the webcam it needs camera permission. Run `viam-server` in the foreground from Terminal initially so the prompt appears — as a background daemon it can fail silently. Grant under System Settings → Privacy & Security → Camera.
 
