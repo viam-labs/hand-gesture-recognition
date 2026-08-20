@@ -70,16 +70,18 @@ else
   exit 1
 fi
 
-echo "==> creating venv"
-python3 -m venv .venv
+# uv installs the exact versions in uv.lock, transitives included, rather than
+# re-resolving at build time. Without it the artifact CI ships is not necessarily
+# the one built and verified locally.
+if ! command -v uv >/dev/null && [ ! -x "$HOME/.local/bin/uv" ]; then
+  echo "==> installing uv"
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
 
-# pip has no default socket timeout either, so a stalled PyPI connection hangs
-# forever. These downloads are large (mediapipe, opencv, matplotlib), which makes
-# a stall more likely, not less.
-export PIP_DEFAULT_TIMEOUT=60
-PIP_ARGS="--retries 5"
-./.venv/bin/pip install $PIP_ARGS --upgrade pip
-./.venv/bin/pip install $PIP_ARGS -r requirements.txt
-./.venv/bin/pip install $PIP_ARGS pyinstaller pytest
+echo "==> syncing dependencies from uv.lock"
+# --frozen fails rather than silently re-locking if pyproject.toml and uv.lock
+# have drifted apart.
+"$UV" sync --frozen --group dev
 
 echo "==> setup complete"

@@ -12,6 +12,7 @@ library that will be bundled, so a version bump that reintroduces telemetry
 fails here rather than on a user's machine.
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -56,19 +57,28 @@ def test_native_library_contains_no_telemetry_client():
     )
 
 
-def test_requirements_pins_an_exact_version():
-    """A floating pin would silently pick up a telemetry-bearing release."""
-    req = (Path(__file__).resolve().parents[1] / "requirements.txt").read_text()
-    line = next(
-        (
-            line.strip()
-            for line in req.splitlines()
-            if line.strip().startswith("mediapipe")
-        ),
-        None,
+def test_pyproject_pins_an_exact_version():
+    """A floating spec would silently pick up a telemetry-bearing release."""
+    proj = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    assert f'"mediapipe=={LAST_CLEAN_VERSION}"' in proj, (
+        f"pyproject.toml must pin mediapipe exactly to {LAST_CLEAN_VERSION}"
     )
-    assert line == f"mediapipe=={LAST_CLEAN_VERSION}", (
-        f"requirements.txt must pin mediapipe exactly, got {line!r}"
+
+
+def test_lockfile_pins_the_same_version():
+    """The lock is what actually gets installed, so it is what must be checked.
+
+    pyproject.toml could pin correctly while uv.lock carried something else if the
+    two ever drifted — setup.sh uses --frozen to prevent that, and this asserts it.
+    """
+    lock = (Path(__file__).resolve().parents[1] / "uv.lock").read_text()
+    match = re.search(
+        r'\[\[package\]\]\nname = "mediapipe"\nversion = "([^"]+)"', lock
+    )
+    assert match, "mediapipe is absent from uv.lock"
+    assert match.group(1) == LAST_CLEAN_VERSION, (
+        f"uv.lock has mediapipe {match.group(1)}, expected {LAST_CLEAN_VERSION}. "
+        f"Later releases embed clearcut telemetry."
     )
 
 

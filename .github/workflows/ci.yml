@@ -16,10 +16,11 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Setup (venv, deps, model bundle)
+        run: ./setup.sh
+
       - name: Ruff
-        run: |
-          pip install ruff
-          ruff check src tests
+        run: make lint
 
   test:
     runs-on: ubuntu-latest

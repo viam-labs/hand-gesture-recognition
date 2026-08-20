@@ -1,5 +1,49 @@
+[project]
+name = "hand-gesture-recognition"
+version = "0.0.0"
+description = "Viam vision service that recognizes hand gestures as detections"
+requires-python = ">=3.12"
+
+dependencies = [
+    # MediaPipe is pinned exactly, and both bounds are load-bearing.
+    #
+    # Upper — 1.0.0 and 1.0.1 abort on macOS arm64 inside
+    # TensorsToDetectionsCalculator::Open -> DrishtiMetalHelper with
+    # "graph_service.h:139 Check failed: service_ Service is unavailable". The
+    # Metal GPU path is compiled into the graph and the Python Tasks runner never
+    # registers the Metal service; BaseOptions.Delegate.CPU does not avoid it.
+    #
+    # Lower — 0.10.35 phones home. Its libmediapipe carries 275 references to
+    # Google's "clearcut" telemetry service and attempts uploads at runtime. It is
+    # undocumented with no opt-out (google-ai-edge/mediapipe#6291), and because the
+    # PyPI wheels are built inside Google it does not appear in the public source
+    # tree at all. 0.10.33 is the newest release with zero references, and there is
+    # no 0.10.34, so it is exactly the last clean version. tests/test_no_telemetry.py
+    # reads the bundled native library to keep it that way.
+    #
+    # 0.10.33 covers py3-none wheels for macosx_11_0_arm64 and manylinux_2_28_x86_64.
+    # The cost of staying below 1.0 is linux/aarch64, whose wheel first shipped in
+    # 1.0.0 — so Raspberry Pi stays out until upstream fixes macOS.
+    "mediapipe==0.10.33",
+    "numpy",
+    "viam-sdk",
+    "typing-extensions",
+]
+
+# Exact versions for the whole tree, including transitives, live in uv.lock.
+# Declare intent here; let the lock pin reality.
+[dependency-groups]
+dev = [
+    "pyinstaller",
+    "pytest",
+    "ruff",
+]
+
+[tool.uv]
+# An application, not a library — there is nothing here to build or install.
+package = false
+
 [tool.ruff]
-# Pinned explicitly so a ruff release cannot change what CI enforces.
 target-version = "py39"
 line-length = 100
 src = ["src", "tests", "."]
@@ -13,10 +57,10 @@ ignore = [
     "B008",  # false positives on dataclass field() defaults
 ]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-filterwarnings = ["ignore::DeprecationWarning"]
-
 [tool.ruff.lint.isort]
 # src/ is this project's own package, not a third-party dependency.
 known-first-party = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
