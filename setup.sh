@@ -55,11 +55,10 @@ if [ "$UNAME" = "Linux" ]; then
   }
 
   apt_get update
-  apt_get install -y python3-venv python3-dev libglib2.0-0 libgl1 libegl1
+  apt_get install -y libglib2.0-0 libgl1 libegl1
   # libgles2 is named libgles2-mesa on Ubuntu 22.04 and older.
   apt_get install -y libgles2 || apt_get install -y libgles2-mesa
 elif [ "$UNAME" = "Darwin" ]; then
-  command -v python3 >/dev/null 2>&1 || { echo "python3 not found; install it first" >&2; exit 1; }
   ARCH=$(uname -m)
   if [ "$ARCH" != "arm64" ]; then
     echo "ERROR: MediaPipe publishes no macOS x86_64 wheel — Apple Silicon is required." >&2
