@@ -78,6 +78,13 @@ if ! command -v uv >/dev/null && [ ! -x "$HOME/.local/bin/uv" ]; then
 fi
 UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
 
+# Use uv's own CPython build rather than whatever the machine happens to have.
+# uv would otherwise prefer a system interpreter satisfying .python-version, which
+# on a CI runner or the Viam build machine means the patch version drifts with the
+# image. PyInstaller freezes the interpreter into the bundle, so that drift would
+# change the published artifact with no change from us.
+export UV_PYTHON_PREFERENCE=only-managed
+
 echo "==> syncing dependencies from uv.lock"
 # --frozen fails rather than silently re-locking if pyproject.toml and uv.lock
 # have drifted apart.
