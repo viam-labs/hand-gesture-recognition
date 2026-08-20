@@ -9,7 +9,7 @@ test:
 	$(VENV)/python -m pytest tests/ -q
 
 lint:
-	$(VENV)/python -m pip install -q ruff && $(VENV)/python -m ruff check src tests
+	$(VENV)/ruff check src tests main.py
 
 module: module.tar.gz
 

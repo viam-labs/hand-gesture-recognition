@@ -55,11 +55,10 @@ if [ "$UNAME" = "Linux" ]; then
   }
 
   apt_get update
-  apt_get install -y python3-venv python3-dev libglib2.0-0 libgl1 libegl1
+  apt_get install -y libglib2.0-0 libgl1 libegl1
   # libgles2 is named libgles2-mesa on Ubuntu 22.04 and older.
   apt_get install -y libgles2 || apt_get install -y libgles2-mesa
 elif [ "$UNAME" = "Darwin" ]; then
-  command -v python3 >/dev/null 2>&1 || { echo "python3 not found; install it first" >&2; exit 1; }
   ARCH=$(uname -m)
   if [ "$ARCH" != "arm64" ]; then
     echo "ERROR: MediaPipe publishes no macOS x86_64 wheel — Apple Silicon is required." >&2
@@ -70,16 +69,25 @@ else
   exit 1
 fi
 
-echo "==> creating venv"
-python3 -m venv .venv
+# uv installs the exact versions in uv.lock, transitives included, rather than
+# re-resolving at build time. Without it the artifact CI ships is not necessarily
+# the one built and verified locally.
+if ! command -v uv >/dev/null && [ ! -x "$HOME/.local/bin/uv" ]; then
+  echo "==> installing uv"
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
 
-# pip has no default socket timeout either, so a stalled PyPI connection hangs
-# forever. These downloads are large (mediapipe, opencv, matplotlib), which makes
-# a stall more likely, not less.
-export PIP_DEFAULT_TIMEOUT=60
-PIP_ARGS="--retries 5"
-./.venv/bin/pip install $PIP_ARGS --upgrade pip
-./.venv/bin/pip install $PIP_ARGS -r requirements.txt
-./.venv/bin/pip install $PIP_ARGS pyinstaller pytest
+# Use uv's own CPython build rather than whatever the machine happens to have.
+# uv would otherwise prefer a system interpreter satisfying .python-version, which
+# on a CI runner or the Viam build machine means the patch version drifts with the
+# image. PyInstaller freezes the interpreter into the bundle, so that drift would
+# change the published artifact with no change from us.
+export UV_PYTHON_PREFERENCE=only-managed
+
+echo "==> syncing dependencies from uv.lock"
+# --frozen fails rather than silently re-locking if pyproject.toml and uv.lock
+# have drifted apart.
+"$UV" sync --frozen --group dev
 
 echo "==> setup complete"

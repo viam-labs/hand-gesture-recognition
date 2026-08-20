@@ -185,11 +185,13 @@ Validate the vision steps above first — all of them should behave as described
 ## Development
 
 ```bash
-./setup.sh          # system libraries, venv, dependencies, and the .task model bundle
+./setup.sh          # system libraries, uv, locked dependencies, and the .task model bundle
 make test           # unit tests
 make lint           # ruff
 make module         # PyInstaller bundle + module.tar.gz
 ```
+
+Dependencies are locked. `pyproject.toml` declares intent and `uv.lock` pins the exact resolved tree — all 43 packages, transitives included, with hashes — so the bundle CI ships is built from the same inputs as the one built locally. `setup.sh` runs `uv sync --frozen`, which fails rather than silently re-resolving if the two drift apart. To change a dependency, edit `pyproject.toml` and run `uv lock`, then commit both.
 
 The 8 MB model bundle is not checked in — `setup.sh` fetches it and the build vendors it into the tarball, so the module has no network dependency at runtime.
 

@@ -12,14 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      # No setup-python: uv provides the interpreter named in .python-version,
+      # so CI and local builds freeze the same CPython into the bundle.
+
+      - name: Setup (venv, deps, model bundle)
+        run: ./setup.sh
 
       - name: Ruff
-        run: |
-          pip install ruff
-          ruff check src tests
+        run: make lint
 
   test:
     runs-on: ubuntu-latest
@@ -27,9 +27,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      # No setup-python: uv provides the interpreter named in .python-version,
+      # so CI and local builds freeze the same CPython into the bundle.
 
       - name: Setup (venv, deps, model bundle)
         run: ./setup.sh
@@ -45,9 +44,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      # No setup-python: uv provides the interpreter named in .python-version,
+      # so CI and local builds freeze the same CPython into the bundle.
 
       - name: Setup (system libs, venv, model bundle)
         run: ./setup.sh
