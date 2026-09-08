@@ -20,13 +20,39 @@ tell you what the registry serves):
 |---|---|
 | `viam:find-webcams` | yes, 0.3.0-rc11 |
 | `viam-labs:modular-webcam` | yes, 0.2.2 |
-| `devrel:so101-arm` | no (0.9.7) |
+| `devrel:so101-arm` | **yes at 0.3.1**, no at 0.9.7 |
 | `devrel:arm-recorder` | no (0.3.1) |
 | `erh:vmodutils` | no (0.4.4) |
 | `viam:hand-gesture-recognition` | no (0.1.6) — hence this trial runs it locally |
 
-So the course is blocked on Windows by three modules, two of them devrel's own.
-That is packaging work, not a platform limit.
+Check every version, not just `latest`: `so101-arm` shipped `windows/amd64` at
+0.3.1 and dropped it by 0.9.7.
+
+**`so101-arm` 0.3.1 on Windows fails on `first_run`, and takes the whole config
+with it.** The package holds `bin/arm.exe` and `first_run.sh`, with a manifest
+reading `"entrypoint": "./bin/arm.exe"` and `"first_run": "./first_run.sh"`.
+`entrypoint` was made per-platform; `first_run` was not. Windows cannot exec a
+shell script:
+
+```
+fork/exec ...\first_run.sh: %1 is not a valid Win32 application.
+reconfiguration aborted because of error executing first run. falling back to
+last config...
+```
+
+The rollback is the important part. One module's `first_run` failure aborts the
+*entire* reconfiguration, so every other resource stops coming up too. On this
+machine that presented as `find-webcams/webcam-discovery` returning a
+ConnectError, which had nothing to do with `find-webcams`: it has a Windows
+build, downloaded 0.2.1, and was never reached.
+
+The script itself installs nlopt on Debian, so it has no business running on
+Windows at all. Fix belongs in `viam-devrel/so-101`: make `first_run`
+per-platform or omit it on Windows, and restore `windows/amd64` to the current
+version. It is the same bug as this module's `setup.sh` exiting 1 on anything
+that is not Linux or Darwin.
+
+So the course is blocked on Windows by module packaging, not by the platform.
 
 ## Before you start
 
