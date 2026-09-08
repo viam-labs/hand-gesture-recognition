@@ -75,10 +75,24 @@ seven models. The arm component still never constructs:
 And Windows has no motion service. The same `ResourceNames` call against both
 machines returns `service motion / builtin` on macOS and nothing on Windows.
 
-This one is not fixable in the module. The camera was, because a *modular*
-camera is a separate process and escapes viam-server's build tags; the arm
-depends on the RDK's **internal** motion service, which no module can supply.
-It needs a cgo-enabled Windows viam-server from Viam.
+**[RESOLVED 2026-09-08]** The arm does not actually need the motion service.
+`Validate` already returns `([]string, []string, error)` — required and optional
+dependencies — and moving `motion.Named("builtin")` into the optional slot lets
+the arm build without it. Only `MoveToPosition` uses the service, and the course
+is joint-space throughout: `MoveToJointPositions`, `MoveThroughJointPositions`,
+teleop, recording and playback all work untouched.
+
+Verified end to end on Windows: the arm constructs, logs
+`builtin motion service unavailable, MoveToPosition disabled` at INFO, and
+returns live joint positions over serial.
+
+`erh:vmodutils` needs no code change either. `arm-position-saver` only requires
+a motion service when its `motion` attribute is set, and the course leaves it
+empty, which takes the `arm.JointPositions()` save path and the
+`goToPositionUsingMoveToJointPositions()` return path. It just needs a build.
+
+All three modules cross-compile for `windows/amd64` from macOS with
+`-tags no_cgo`, no toolchain setup.
 
 (The mechanism is inferred: motion is absent on Windows and present on macOS,
 which is verified, but the specific build tag was not located.
@@ -89,9 +103,20 @@ camera is gated the same way, so `no_cgo` is the likely cause.)
 This probably explains why `windows/amd64` was dropped from `build.arch`
 between 0.3.1 and 0.9.7.
 
-So the course is blocked on Windows by the RDK build, not by module packaging.
-The `first_run` bug is real and worth fixing, but fixing it does not unblock
-the course.
+So the course needs **no changes** to run on Windows, which matters because all
+nine videos are recorded and cannot be refilmed. Three module PRs, none of them
+touching course content:
+
+| Module | Change |
+|---|---|
+| `erh:vmodutils` | add `windows/amd64` to `build.arch`. No code change. |
+| `devrel:arm-recorder` | add `windows/amd64`. No code change. |
+| `devrel:so101-arm` | add `windows/amd64`, stop declaring `first_run` on Windows, make the builtin motion dependency optional. |
+
+The camera is the one course-visible difference: `rdk:builtin:webcam` is absent
+from the `no_cgo` build, so a Windows learner needs
+`viam-labs:modular-webcam:webcam` instead. `viam:find-webcams` works, so
+discovery still functions.
 
 ## Before you start
 
