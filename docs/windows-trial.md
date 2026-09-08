@@ -112,10 +112,35 @@ forcing the flag would hide the answer.
 
 ## 6. Register it as a local module
 
-In the Viam app, on this machine's **CONFIGURE** tab, add a **local module**:
+**`tcp_mode` is required on Windows.** viam-server does not infer it. The RDK's
+module config carries a `tcp_mode` field, and without it the module is started
+with a Unix socket path and dies on `create_unix_server`, exactly as in step 4.
+(`VIAM_TCP_SOCKETS=true` in the environment forces it on regardless, but set the
+field.)
 
-- Executable path: the full path to `run.bat`
-- Name: `hand-gesture-recognition`
+The local-module option can be hard to find in the CONFIGURE tab's **+** menu.
+The JSON editor, the `{}` icon at the top left, is the path that does not move:
+
+```json
+"modules": [
+  {
+    "type": "local",
+    "name": "hand-gesture-recognition",
+    "executable_path": "C:\\path\\to\\hand-gesture-recognition\\run.bat",
+    "tcp_mode": true
+  }
+]
+```
+
+Backslashes are doubled because JSON escapes them. Field names come from
+`config.Module` in the RDK: `name`, `executable_path`, `type` (`local` or
+`registry`), `tcp_mode`.
+
+> **Checkpoint:** the module appears in the LOGS tab and stays up. A resource
+> error saying the model is *"not registered ... may be in failing module"* is
+> the vision service complaining downstream, not the module's own error. If the
+> module is missing from the config entirely, that is the message you get, with
+> no module logs at all and no validation error, because nothing was started.
 
 Then add a **camera** component (`webcam`) and pick your USB camera.
 
@@ -141,11 +166,10 @@ Add a service with model `viam:hand-gesture-recognition:gestures`, named
 
 1. Which step failed, if any, and the exact error.
 2. Any missing DLL from step 3.
-3. **Whether viam-server launched the module with `--tcp-mode`.** If the LOGS
-   tab shows a `NotImplementedError` ending in `create_unix_server`, it did
-   not, and no amount of module packaging fixes that: the module cannot be
-   served on Windows until the RDK passes the flag. This is the one finding
-   here that is not ours to fix.
+3. **[ANSWERED 2026-09-08] Modules need `"tcp_mode": true` on Windows.** It is
+   opt-in per module in the RDK's config, not inferred from the platform. This
+   is not an RDK gap, and it is not something `meta.json` or `setup.sh` can
+   carry: it belongs in whatever instructions ship for Windows users.
 4. Whether the webcam was visible to viam-server at all.
 5. Whether MediaPipe's startup lines arrive as ERROR in the LOGS tab. The
    fd-2 relay in `src/runtime.py` may not take on Windows — native code there
