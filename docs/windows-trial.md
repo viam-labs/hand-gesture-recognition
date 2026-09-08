@@ -41,10 +41,18 @@ last config...
 ```
 
 The rollback is the important part. One module's `first_run` failure aborts the
-*entire* reconfiguration, so every other resource stops coming up too. On this
-machine that presented as `find-webcams/webcam-discovery` returning a
-ConnectError, which had nothing to do with `find-webcams`: it has a Windows
-build, downloaded 0.2.1, and was never reached.
+*entire* reconfiguration, so no later edit to the machine takes effect at all:
+viam-server keeps serving the last config that fully applied, and retries every
+ten seconds forever. On this machine that presented as
+`find-webcams/webcam-discovery` returning a ConnectError. It had nothing to do
+with `find-webcams`, which has a Windows build, downloaded 0.2.1, and worked as
+soon as `so101-arm` was removed.
+
+**Disabling resources does not clear it.** A module runs its `first_run`
+whether or not any component or service uses it, so the entry has to come out of
+the `modules` array. There is no way out of this state from the resource UI,
+which is worth stating in the bug report: a broken `first_run` wedges the whole
+machine, not just its own module.
 
 The script itself installs nlopt on Debian, so it has no business running on
 Windows at all. Fix belongs in `viam-devrel/so-101`: make `first_run`
@@ -247,9 +255,10 @@ Add a service with model `viam:hand-gesture-recognition:gestures`, named
    is not bound by viam-server's build tags.
    `viam-labs:modular-webcam:webcam` works on Windows out of the box and offers
    a dropdown of sources. Gesture recognition runs end to end against it.
-5. `viam:find-webcams` does have a Windows build and does start, but its
-   discovery returned no cameras on Windows. Unresolved, and it matters: the
-   course has learners add it.
+5. **[ANSWERED 2026-09-08] `viam:find-webcams` works on Windows.** Its earlier
+   ConnectError was `so101-arm` wedging the config, not a fault of its own.
+   Removing the `so101-arm` module let the reconfiguration complete and
+   discovery worked.
 6. Whether MediaPipe's startup lines arrive as ERROR in the LOGS tab. The
    fd-2 relay in `src/runtime.py` may not take on Windows — native code there
    often writes to `GetStdHandle` rather than the CRT descriptor table. It fails
