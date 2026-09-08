@@ -60,7 +60,38 @@ per-platform or omit it on Windows, and restore `windows/amd64` to the current
 version. It is the same bug as this module's `setup.sh` exiting 1 on anything
 that is not Linux or Darwin.
 
-So the course is blocked on Windows by module packaging, not by the platform.
+### The arm cannot run on Windows at all
+
+Confirmed 2026-09-08. `devrel:so101-arm` built from HEAD, cross-compiled with
+`GOOS=windows GOARCH=amd64 -tags no_cgo`, runs on Windows and registers all
+seven models. The arm component still never constructs:
+
+> resource build error: dependency builtin is not ready yet; reason=resource
+> `rdk:service:motion/builtin` not available
+
+`components/arm/arm.go` always declares a motion dependency, a named service if
+`motion` is configured and `builtin` otherwise. There is no opt-out.
+
+And Windows has no motion service. The same `ResourceNames` call against both
+machines returns `service motion / builtin` on macOS and nothing on Windows.
+
+This one is not fixable in the module. The camera was, because a *modular*
+camera is a separate process and escapes viam-server's build tags; the arm
+depends on the RDK's **internal** motion service, which no module can supply.
+It needs a cgo-enabled Windows viam-server from Viam.
+
+(The mechanism is inferred: motion is absent on Windows and present on macOS,
+which is verified, but the specific build tag was not located.
+`services/motion/builtin/builtin.go` carries no tag and motion is not in
+`services/register/all_cgo.go`. Motion planning needs nlopt through cgo, and the
+camera is gated the same way, so `no_cgo` is the likely cause.)
+
+This probably explains why `windows/amd64` was dropped from `build.arch`
+between 0.3.1 and 0.9.7.
+
+So the course is blocked on Windows by the RDK build, not by module packaging.
+The `first_run` bug is real and worth fixing, but fixing it does not unblock
+the course.
 
 ## Before you start
 
@@ -255,11 +286,14 @@ Add a service with model `viam:hand-gesture-recognition:gestures`, named
    is not bound by viam-server's build tags.
    `viam-labs:modular-webcam:webcam` works on Windows out of the box and offers
    a dropdown of sources. Gesture recognition runs end to end against it.
-5. **[ANSWERED 2026-09-08] `viam:find-webcams` works on Windows.** Its earlier
+5. **[ANSWERED 2026-09-08] `erh:vmodutils` has no Windows build at any
+   version.** viam-server reports "No versions that support platform
+   windows/amd64", which is a stronger statement than a per-version check.
+6. **[ANSWERED 2026-09-08] `viam:find-webcams` works on Windows.** Its earlier
    ConnectError was `so101-arm` wedging the config, not a fault of its own.
    Removing the `so101-arm` module let the reconfiguration complete and
    discovery worked.
-6. Whether MediaPipe's startup lines arrive as ERROR in the LOGS tab. The
+7. Whether MediaPipe's startup lines arrive as ERROR in the LOGS tab. The
    fd-2 relay in `src/runtime.py` may not take on Windows — native code there
    often writes to `GetStdHandle` rather than the CRT descriptor table. It fails
    safe, so this is cosmetic, but it tells us whether the relay needs a Windows
