@@ -142,7 +142,39 @@ Backslashes are doubled because JSON escapes them. Field names come from
 > module is missing from the config entirely, that is the message you get, with
 > no module logs at all and no validation error, because nothing was started.
 
-Then add a **camera** component (`webcam`) and pick your USB camera.
+### The camera: `rdk:builtin:webcam` does not exist on Windows
+
+Confirmed 2026-09-08 on viam-server 1.3.0, Windows. Configuring a webcam gives:
+
+> unknown resource type: API rdk:component:camera with model
+> rdk:builtin:webcam not registered
+
+Not "no camera found" — the model is absent from the binary. The RDK registers
+cameras in `components/camera/register`: `fake` unconditionally, and `ffmpeg`,
+`replaypcd` and `videosource` (which provides `rdk:builtin:webcam`) behind
+`//go:build !no_cgo`. The Windows binary is built with `no_cgo`, so the only
+camera model it has is `rdk:builtin:fake`. The underlying reason is that
+mediadevices' Windows camera driver is cgo against DirectShow.
+
+Nothing in this module or its packaging changes that, and it holds for any Viam
+vision work on Windows.
+
+So use the fake camera, which validates everything except the pixels:
+
+```json
+{
+  "name": "cam",
+  "api": "rdk:component:camera",
+  "model": "rdk:builtin:fake",
+  "attributes": {}
+}
+```
+
+> **Checkpoint:** `gestures` reports **Ready** and its Test card returns an empty
+> detection list rather than an error. That proves the module configures, starts
+> under viam-server, resolves its camera dependency, pulls frames and runs
+> inference on Windows. It cannot prove recognition, because the fake camera
+> never shows a hand.
 
 > **Checkpoint:** the camera's **Test** card shows a live image. If the webcam
 > does not appear at all, record that — it is a `viam-server` on Windows
@@ -170,8 +202,13 @@ Add a service with model `viam:hand-gesture-recognition:gestures`, named
    opt-in per module in the RDK's config, not inferred from the platform. This
    is not an RDK gap, and it is not something `meta.json` or `setup.sh` can
    carry: it belongs in whatever instructions ship for Windows users.
-4. Whether the webcam was visible to viam-server at all.
-5. Whether MediaPipe's startup lines arrive as ERROR in the LOGS tab. The
+4. **[ANSWERED 2026-09-08] No real camera on Windows.** viam-server's Windows
+   build is `no_cgo`, so `rdk:builtin:webcam` is not registered and only the
+   fake camera exists. This is the trial's most consequential result: it blocks
+   the course on Windows regardless of the arms, and it is worth an RDK issue.
+5. Whether `viam:find-webcams` starts at all on Windows. It publishes no
+   Windows build, and the course has learners add it.
+6. Whether MediaPipe's startup lines arrive as ERROR in the LOGS tab. The
    fd-2 relay in `src/runtime.py` may not take on Windows — native code there
    often writes to `GetStdHandle` rather than the CRT descriptor table. It fails
    safe, so this is cosmetic, but it tells us whether the relay needs a Windows
