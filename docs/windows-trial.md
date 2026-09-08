@@ -11,9 +11,22 @@ Windows. That needs `windows/amd64` in `meta.json`, a Windows branch in
 manifest hard-codes `dist/main/main`), and a Viam cloud-build runner that accepts
 the target. Do not start on those until this trial passes.
 
-**It also cannot test the course.** `so101-arm`, `arm-recorder`, `find-webcams`
-and `vmodutils` publish no Windows build either, so the arms and the recorder are
-out of scope here. This is the gesture module alone.
+**Which modules actually have Windows builds** (checked 2026-09-08 with
+`viam module download --platform windows/amd64`, which asks the registry; a
+module's `meta.json` `build.arch` is the cloud-build matrix and does **not**
+tell you what the registry serves):
+
+| Module | windows/amd64 |
+|---|---|
+| `viam:find-webcams` | yes, 0.3.0-rc11 |
+| `viam-labs:modular-webcam` | yes, 0.2.2 |
+| `devrel:so101-arm` | no (0.9.7) |
+| `devrel:arm-recorder` | no (0.3.1) |
+| `erh:vmodutils` | no (0.4.4) |
+| `viam:hand-gesture-recognition` | no (0.1.6) — hence this trial runs it locally |
+
+So the course is blocked on Windows by three modules, two of them devrel's own.
+That is packaging work, not a platform limit.
 
 ## Before you start
 
@@ -202,12 +215,15 @@ Add a service with model `viam:hand-gesture-recognition:gestures`, named
    opt-in per module in the RDK's config, not inferred from the platform. This
    is not an RDK gap, and it is not something `meta.json` or `setup.sh` can
    carry: it belongs in whatever instructions ship for Windows users.
-4. **[ANSWERED 2026-09-08] No real camera on Windows.** viam-server's Windows
-   build is `no_cgo`, so `rdk:builtin:webcam` is not registered and only the
-   fake camera exists. This is the trial's most consequential result: it blocks
-   the course on Windows regardless of the arms, and it is worth an RDK issue.
-5. Whether `viam:find-webcams` starts at all on Windows. It publishes no
-   Windows build, and the course has learners add it.
+4. **[ANSWERED 2026-09-08, then corrected] `rdk:builtin:webcam` does not exist
+   on Windows**, because viam-server's Windows build is `no_cgo`. But that is
+   not "no camera on Windows": a *modular* camera runs as its own process and
+   is not bound by viam-server's build tags.
+   `viam-labs:modular-webcam:webcam` works on Windows out of the box and offers
+   a dropdown of sources. Gesture recognition runs end to end against it.
+5. `viam:find-webcams` does have a Windows build and does start, but its
+   discovery returned no cameras on Windows. Unresolved, and it matters: the
+   course has learners add it.
 6. Whether MediaPipe's startup lines arrive as ERROR in the LOGS tab. The
    fd-2 relay in `src/runtime.py` may not take on Windows — native code there
    often writes to `GetStdHandle` rather than the CRT descriptor table. It fails
