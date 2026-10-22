@@ -65,17 +65,10 @@ MediaPipe's eighth category, `None`, means "a hand is visible but matches no kno
 | Platform | Supported |
 |---|---|
 | macOS Apple Silicon (`darwin/arm64`) | ✅ |
-| Linux x86_64 (`linux/amd64`, glibc ≥ 2.28) | ✅ |
-| Linux arm64 / Raspberry Pi | ❌ no wheel below 1.0 |
+| Linux x86_64 (`linux/amd64`, glibc ≥ 2.28) | ✅ likely requires an AVX2-capable CPU |
+| Linux arm64 / Raspberry Pi (`linux/arm64`, glibc ≥ 2.28) | ✅ 64-bit Raspberry Pi OS only |
+| Raspberry Pi OS 32-bit (armv7) | ❌ no MediaPipe wheel at any version |
 | macOS Intel | ❌ no MediaPipe wheel at any version |
-
-MediaPipe is pinned to `0.10.33`, and the pin is load-bearing in both directions.
-
-**Not 1.0.x** — 1.0.0 and 1.0.1 abort on macOS arm64 inside `TensorsToDetectionsCalculator::Open` → `DrishtiMetalHelper` with `graph_service.h:139 Check failed: service_ Service is unavailable`. The Metal GPU path is compiled into the graph and the Python Tasks runner never registers the Metal service; `BaseOptions.Delegate.CPU` does not avoid it.
-
-**Not 0.10.35** — that build phones home. Its `libmediapipe` carries 275 references to Google's `clearcut` telemetry service and attempts uploads at runtime, which show up in logs as `portable_clearcut_uploader.cc` errors. The telemetry is undocumented and has no opt-out ([google-ai-edge/mediapipe#6291](https://github.com/google-ai-edge/mediapipe/issues/6291)); because the PyPI wheels are built inside Google, `clearcut` does not appear in the public source tree, so it can only be audited from the shipped binary. `0.10.33` is the newest release with zero references, and there is no `0.10.34` — it is exactly the last clean version. `tests/test_no_telemetry.py` reads the bundled native library on every CI run to keep it that way.
-
-`0.10.33` matches `0.10.35` on platform coverage and performance. The cost of staying below 1.0 is arm64 Linux, whose wheel first shipped in 1.0.0 — so Raspberry Pi is out until upstream fixes macOS. That bug is Apple-specific, so a per-platform pin could restore it if needed.
 
 On Linux the bundle needs three libraries from the host, because PyInstaller refuses to bundle the GL family — they have to match the machine's graphics drivers:
 
@@ -90,6 +83,10 @@ All three are hard `DT_NEEDED` entries reached at import, so missing any one sho
 Nothing else is needed from the host — `libglib` is bundled, and the `libxcb` / `libICE` / `libSM` that Qt's xcb platform plugin wants are never reached, since nothing here opens a GUI window.
 
 On macOS, the first time `viam-server` opens the webcam it needs camera permission. Run `viam-server` in the foreground from Terminal initially so the prompt appears — as a background daemon it can fail silently. Grant under System Settings → Privacy & Security → Camera.
+
+### Telemetry
+
+MediaPipe 1.x, which this module uses on every platform, sends usage telemetry to Google (its `clearcut` service). This is undocumented, built into Google's PyPI wheels, and has no opt-out ([google-ai-edge/mediapipe#6291](https://github.com/google-ai-edge/mediapipe/issues/6291)). The uploads are silent, need no interaction, and are not on the recognition path. The module runs normally with outbound network access blocked, so you can firewall it if that matters for your deployment.
 
 ## Manual validation
 
@@ -191,7 +188,7 @@ make lint           # ruff
 make module         # PyInstaller bundle + module.tar.gz
 ```
 
-Dependencies are locked. `pyproject.toml` declares intent and `uv.lock` pins the exact resolved tree — all 43 packages, transitives included, with hashes — so the bundle CI ships is built from the same inputs as the one built locally. `setup.sh` runs `uv sync --frozen`, which fails rather than silently re-resolving if the two drift apart. To change a dependency, edit `pyproject.toml` and run `uv lock`, then commit both.
+Dependencies are locked. `pyproject.toml` declares intent and `uv.lock` pins the exact resolved tree — all 44 packages, transitives included, with hashes — so the bundle CI ships is built from the same inputs as the one built locally. `setup.sh` runs `uv sync --frozen`, which installs exactly the locked versions without re-resolving; `uv lock --check` confirms the lock still matches `pyproject.toml`. To change a dependency, edit `pyproject.toml` and run `uv lock`, then commit both.
 
 The 8 MB model bundle is not checked in — `setup.sh` fetches it and the build vendors it into the tarball, so the module has no network dependency at runtime.
 
