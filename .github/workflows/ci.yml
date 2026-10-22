@@ -37,9 +37,15 @@ jobs:
         run: make test
 
   # v0.1.1 shipped a bundle that crashed on startup while every unit test passed,
-  # because nothing executed the built artifact. This job builds it and runs it.
+  # because nothing executed the built artifact. This job builds it and runs it,
+  # once per Linux architecture the module ships for. build.sh runs the full test
+  # suite first, so arm64 also gets the real-model tests.
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
