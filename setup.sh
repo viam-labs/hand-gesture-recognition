@@ -61,7 +61,7 @@ if [ "$UNAME" = "Linux" ]; then
 elif [ "$UNAME" = "Darwin" ]; then
   ARCH=$(uname -m)
   if [ "$ARCH" != "arm64" ]; then
-    echo "ERROR: MediaPipe publishes no macOS x86_64 wheel — Apple Silicon is required." >&2
+    echo "ERROR: MediaPipe 1.1.1 publishes no macOS x86_64 wheel — Apple Silicon is required." >&2
     exit 1
   fi
 else
@@ -86,8 +86,8 @@ UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
 export UV_PYTHON_PREFERENCE=only-managed
 
 echo "==> syncing dependencies from uv.lock"
-# --frozen fails rather than silently re-locking if pyproject.toml and uv.lock
-# have drifted apart.
+# --frozen installs exactly what uv.lock pins and never re-resolves. It does not
+# compare uv.lock against pyproject.toml; `uv lock --check` does that.
 "$UV" sync --frozen --group dev
 
 echo "==> setup complete"
