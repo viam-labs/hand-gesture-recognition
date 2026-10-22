@@ -18,6 +18,11 @@ jobs:
       - name: Setup (venv, deps, model bundle)
         run: ./setup.sh
 
+      # setup.sh's `uv sync --frozen` installs uv.lock as-is and would not notice
+      # pyproject.toml drifting from it; this does.
+      - name: Lock matches pyproject.toml
+        run: '"$(command -v uv || echo "$HOME/.local/bin/uv")" lock --check'
+
       - name: Ruff
         run: make lint
 

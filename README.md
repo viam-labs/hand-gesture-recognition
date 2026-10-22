@@ -66,7 +66,7 @@ MediaPipe's eighth category, `None`, means "a hand is visible but matches no kno
 |---|---|
 | macOS Apple Silicon (`darwin/arm64`) | ✅ |
 | Linux x86_64 (`linux/amd64`, glibc ≥ 2.28) | ✅ likely requires an AVX2-capable CPU |
-| Linux arm64 / Raspberry Pi (`linux/arm64`, glibc ≥ 2.28) | ✅ 64-bit Raspberry Pi OS only |
+| Linux arm64 / Raspberry Pi (`linux/arm64`, glibc ≥ 2.28) | ✅ 64-bit OS required |
 | Raspberry Pi OS 32-bit (armv7) | ❌ no MediaPipe wheel at any version |
 | macOS Intel | ❌ no MediaPipe 1.1.1 wheel |
 

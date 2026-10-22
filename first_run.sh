@@ -3,8 +3,8 @@
 #
 # PyInstaller deliberately refuses to bundle the GL family — those libraries have
 # to match the host's graphics drivers — so they must come from the system.
-# Verified against the built linux/amd64 bundle by reading DT_NEEDED across all
-# 218 bundled binaries, and confirmed for linux/arm64 with mediapipe 1.1.1; the
+# Verified by reading DT_NEEDED across every binary in the linux/amd64 bundle
+# (mediapipe 0.10.33) and in mediapipe 1.1.1's linux/arm64 native libraries; the
 # same three entries are unsatisfied at import time on both:
 #
 #   libGLESv2.so.2, libEGL.so.1   <- mediapipe/tasks/c/libmediapipe.so
