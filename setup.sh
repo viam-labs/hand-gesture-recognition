@@ -61,7 +61,7 @@ if [ "$UNAME" = "Linux" ]; then
 elif [ "$UNAME" = "Darwin" ]; then
   ARCH=$(uname -m)
   if [ "$ARCH" != "arm64" ]; then
-    echo "ERROR: MediaPipe publishes no macOS x86_64 wheel — Apple Silicon is required." >&2
+    echo "ERROR: MediaPipe 1.1.1 publishes no macOS x86_64 wheel — Apple Silicon is required." >&2
     exit 1
   fi
 else
