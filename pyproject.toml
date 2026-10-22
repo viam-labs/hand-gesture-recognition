@@ -5,26 +5,17 @@ description = "Viam vision service that recognizes hand gestures as detections"
 requires-python = ">=3.12"
 
 dependencies = [
-    # MediaPipe is pinned exactly, and both bounds are load-bearing.
+    # MediaPipe is pinned exactly; uv.lock pins the rest of the tree.
     #
-    # Upper — 1.0.0 and 1.0.1 abort on macOS arm64 inside
-    # TensorsToDetectionsCalculator::Open -> DrishtiMetalHelper with
-    # "graph_service.h:139 Check failed: service_ Service is unavailable". The
-    # Metal GPU path is compiled into the graph and the Python Tasks runner never
-    # registers the Metal service; BaseOptions.Delegate.CPU does not avoid it.
+    # 1.1.1 is the first release usable on every target: the 1.x line is the first
+    # with py3-none linux/aarch64 wheels that coexist with viam-sdk (0.10.18's
+    # aarch64 wheel needs protobuf<5; viam-sdk pins protobuf 6), and the 1.0.x
+    # macOS arm64 Metal abort (DrishtiMetalHelper, graph_service.h:139) is fixed.
     #
-    # Lower — 0.10.35 phones home. Its libmediapipe carries 275 references to
-    # Google's "clearcut" telemetry service and attempts uploads at runtime. It is
-    # undocumented with no opt-out (google-ai-edge/mediapipe#6291), and because the
-    # PyPI wheels are built inside Google it does not appear in the public source
-    # tree at all. 0.10.33 is the newest release with zero references, and there is
-    # no 0.10.34, so it is exactly the last clean version. tests/test_no_telemetry.py
-    # reads the bundled native library to keep it that way.
-    #
-    # 0.10.33 covers py3-none wheels for macosx_11_0_arm64 and manylinux_2_28_x86_64.
-    # The cost of staying below 1.0 is linux/aarch64, whose wheel first shipped in
-    # 1.0.0 — so Raspberry Pi stays out until upstream fixes macOS.
-    "mediapipe==0.10.33",
+    # 1.x embeds Google's "clearcut" usage telemetry with no opt-out
+    # (google-ai-edge/mediapipe#6291). That is accepted deliberately: it is silent,
+    # needs no interaction, and recognition is unaffected when uploads are blocked.
+    "mediapipe==1.1.1",
     "numpy",
     "viam-sdk",
     "typing-extensions",
