@@ -33,7 +33,7 @@ from viam.media.utils.pil import viam_to_pil_image
 from viam.media.video import ViamImage
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import PointCloudObject, ResourceName
-from viam.proto.service.vision import Classification, Detection, GetPropertiesResponse
+from viam.proto.service.vision import Classification, Detection, Detection3D, GetPropertiesResponse
 from viam.resource.base import ResourceBase
 from viam.resource.easy_resource import EasyResource
 from viam.services.vision import CaptureAllResult, Vision
@@ -404,6 +404,11 @@ class GestureDetector(Vision, EasyResource):
                     for d in detections
                 ]
         return result
+
+    async def get_detections_3d(
+        self, camera_name: str, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None
+    ) -> List[Detection3D]:
+        raise NotImplementedError("gesture detection does not produce 3D detections")
 
     async def get_object_point_clouds(
         self, camera_name: str, *, extra: Optional[Mapping[str, Any]] = None, timeout: Optional[float] = None
